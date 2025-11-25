@@ -103,7 +103,7 @@ if foto:
                     st.balloons()
                     st.success("Diary tersimpan di cloud!")
                 else:
-                    st.warning("Mungkin sudah absen hari ini")
+                    st.warning("Mungkin sudah sonot hari ini")
             except:
                 st.code(r.text)
 
