@@ -41,14 +41,27 @@ else:
     lng = c2.text_input("Lng", "103.5150731")
 
 sesi = st.radio("Sesi", ["Pagi", "Sore"], horizontal=True)
-foto = st.camera_input("Ambil Foto Full Body", key="cam")
+
+# TRIK FULL FRAME KAMERA (ini yang bikin beda!)
+st.markdown("""
+<style>
+    section[data-testid="stCameraInput"] > div > div > div > button {height: 85vh !important; width: 100vw !important; border-radius: 0 !important;}
+    section[data-testid="stCameraInput"] video {height: 85vh !important; width: 100vw !important; object-fit: cover !important;}
+    section[data-testid="stCameraInput"] canvas {height: 85vh !important; width: 100vw !important;}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("<h4 style='text-align:center;'>Ambil Foto Full Frame</h4>", unsafe_allow_html=True)
+foto = st.camera_input(" ", key="cam_fullframe")
 
 if foto:
     img = Image.open(foto)
     w, h = img.size
 
-    # INI TRIK BARU: CUMA RESIZE LEBAR 1080 → TINGGI IKUT ASLI → GAK ADA CROP / PAD SAMA SEKALI!
-    final_img = img.resize((1080, int(h * 1080 / w)), Image.LANCZOS)
+    # Resize lebar 1080 → tinggi ikut rasio asli (natural)
+    new_w = 1080
+    new_h = int(h * new_w / w)
+    final_img = img.resize((new_w, new_h), Image.LANCZOS)
 
     # Kompres <340 KB
     buf = io.BytesIO()
@@ -60,9 +73,9 @@ if foto:
         final_img.save(buf, "JPEG", quality=quality, optimize=True)
     buf.seek(0)
 
-    # BUKTI UKURAN ASLI
+    # BUKTI FULL FRAME
     st.markdown(f"### FOTO DIKIRIM: **{final_img.width} × {final_img.height}** · {buf.tell()//1024} KB")
-    st.image(final_img, caption="Foto final – 100% natural (gak ada kotak putih!)", width=320)
+    st.image(final_img, caption="Full frame — isi seluruh layar", use_column_width=True)  # use_column_width = full layar
 
     simulasi = st.checkbox("Coba simpan dulu (aman)", value=True)
 
