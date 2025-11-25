@@ -12,7 +12,7 @@ st.markdown("**Catat momen setiap hari** · Foto & kenangan")
 BASE = st.secrets["CLOUD_URL"]
 LOGIN = f"{BASE}/api/login/mobile"
 
-# Google Sheets CSV
+# Google Sheets kamu
 SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQjQL_7iM6JHBoOYYX4fTVipCq2RPYCR5kCqv6XKhk1T8CjC7m4iunaYimA-jUa98jTJPTLzu1pdOU/pub?output=csv"
 
 @st.cache_data(ttl=60)
@@ -22,7 +22,9 @@ def get_tempat():
         tempat = {}
         for _, r in df.iterrows():
             if len(r) >= 3 and pd.notna(r[0]):
-                nama, lat, lng = str(r[0]).strip(), str(r[1]).strip(), str(r[2]).strip()
+                nama = str(r[0]).strip()
+                lat = str(r[1]).strip()
+                lng = str(r[2]).strip()
                 tempat[nama] = [lat, lng]
         return tempat if tempat else {"Rumah": ["-1.4477158", "103.5150731"]}
     except:
@@ -40,34 +42,29 @@ else:
 
 sesi = st.radio("Sesi", ["Pagi", "Sore"], horizontal=True)
 
-st.markdown("<h4 style='text-align:center;'>Ambil Foto Full Body</h4><p style='text-align:center;color:#888;'>Kamera depan • Mundur sedikit • Pastikan wajah + badan atas kelihatan</p>", unsafe_allow_html=True)
-
-foto = st.camera_input(" ", key="cam_full")
+st.markdown("<h4 style='text-align:center;'>Ambil Foto Full Body</h4>", unsafe_allow_html=True)
+foto = st.camera_input(" ", key="cam")
 
 if foto:
     img = Image.open(foto)
     w, h = img.size
 
-    # 1. Resize proporsional ke lebar 1080 (tinggi ikut rasio asli)
-    img = img.resize((1080, int(h * 1080 / w)), Image.LANCZOS)
+    # RESIZE JADI 1080x2232 MIRIP AISIKO ASLI
+    final_img = img.resize((1080, 2232), Image.LANCZOS)
 
-    # 2. Crop tengah biar wajah tetap di posisi ideal
-    new_h = img.height
-    crop_h = min(2232, new_h)                    # maksimal 2232 seperti SS Reqable-mu
-    top = max(0, (new_h - crop_h) // 2)          # mulai dari tengah
-    img = img.crop((0, top, 1080, top + crop_h))
-
-    # 3. Kompres optimal <340 KB
+    # KOMPRESS <340 KB
     buf = io.BytesIO()
     quality = 92
-    img.save(buf, "JPEG", quality=quality, optimize=True)
-    while buf.tell() > 340000 and quality > 60:
+    final_img.save(buf, "JPEG", quality=quality, optimize=True)
+    while buf.tell() > 340000 and quality > 40:
         quality -= 5
         buf = io.BytesIO()
-        img.save(buf, "JPEG", quality=quality, optimize=True)
+        final_img.save(buf, "JPEG", quality=quality, optimize=True)
     buf.seek(0)
 
-    st.image(img, caption=f"Preview • {img.width}×{img.height} • {buf.tell()//1024} KB", width=320)
+    # BUKTI UKURAN ASLI (INI YANG DIKIRIM KE SERVER!)
+    st.markdown(f"### FOTO YANG DIKIRIM KE SERVER: **1080 × 2232** · {buf.tell()//1024} KB")
+    st.image(final_img, caption="Full size 1080×2232 (persis seperti Aisiko)", width=320)
 
     simulasi = st.checkbox("Coba simpan dulu (aman)", value=True)
 
@@ -85,19 +82,18 @@ if foto:
                 token = requests.post(LOGIN, json=cred).json()["data"]["token"]
                 url = f"{BASE}/api/mobile/absen/kantor/masuk" if sesi == "Pagi" else f"{BASE}/api/mobile/absen/kantor/pulang"
                 files = {'foto': ('foto.jpg', buf, 'image/jpeg')}
-                r = requests.post(url, data={'latitude':lat, 'longitude':lng}, files=files,
-                                headers={'authorization': f'Bearer {token}'}, timeout=30)
+                r = requests.post(url, data={'latitude':lat,'longitude':lng}, files=files, headers={'authorization':f'Bearer {token}'}, timeout=30)
 
             st.subheader("Status Cloud")
             try:
                 resp = r.json()
-                st.json(resp, expanded=False)
+                st.json(resp)
                 if resp.get("isSuccess") or "berhasil" in str(resp.get("message","")).lower():
                     st.balloons()
                     st.success("Diary tersimpan di cloud!")
                 else:
-                    st.warning("Mungkin sudah hari ini")
+                    st.warning("Mungkin sudah absen hari ini")
             except:
                 st.code(r.text)
 
-st.caption("Aplikasi diary pribadi – 2025")
+st.caption("Diary pribadi – 2025")
