@@ -8,11 +8,11 @@ st.set_page_config(page_title="Diary Ku", layout="centered")
 st.title("Diary Harian Ku")
 st.markdown("**Catat momen setiap hari** · Foto & kenangan")
 
-# Secrets (wajib ada di Streamlit Cloud)
+# Secrets
 BASE = st.secrets["CLOUD_URL"]
 LOGIN = f"{BASE}/api/login/mobile"
 
-# Google Sheets kamu
+# Google Sheets
 SHEET = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQjQL_7iM6JHBoOYYX4fTVipCq2RPYCR5kCqv6XKhk1T8CjC7m4iunaYimA-jUa98jTJPTLzu1pdOU/pub?output=csv"
 
 @st.cache_data(ttl=60)
@@ -41,31 +41,20 @@ else:
     lng = c2.text_input("Lng", "103.5150731")
 
 sesi = st.radio("Sesi", ["Pagi", "Sore"], horizontal=True)
-
-st.markdown("<h4 style='text-align:center;'>Ambil Foto Full Body</h4>", unsafe_allow_html=True)
-foto = st.camera_input(" ", key="cam")
-
-# GANTI BAGIAN PROSES FOTO JADI INI SAJA (sisanya tetap sama)
+foto = st.camera_input("Ambil Foto Full Body", key="cam")
 
 if foto:
     img = Image.open(foto)
     w, h = img.size
 
-    # 1. Paksa lebar 1080, tinggi ikut rasio asli (biar gak gepeng)
-    new_h = int(h * 1080 / w)
-    final_img = img.resize((1080, new_h), Image.LANCZOS)
+    # INI TRIK BARU: CUMA RESIZE LEBAR 1080 → TINGGI IKUT ASLI → GAK ADA CROP / PAD SAMA SEKALI!
+    final_img = img.resize((1080, int(h * 1080 / w)), Image.LANCZOS)
 
-    # 2. Crop tengah kalau terlalu tinggi (maksimal ~2000-2300 px)
-    max_h = 2300
-    if final_img.height > max_h:
-        top = (final_img.height - max_h) // 2
-        final_img = final_img.crop((0, top, 1080, top + max_h))
-
-    # 3. Kompres <340 KB
+    # Kompres <340 KB
     buf = io.BytesIO()
     quality = 92
     final_img.save(buf, "JPEG", quality=quality, optimize=True)
-    while buf.tell() > 340000 and quality > 50:
+    while buf.tell() > 340000 and quality > 40:
         quality -= 5
         buf = io.BytesIO()
         final_img.save(buf, "JPEG", quality=quality, optimize=True)
@@ -73,7 +62,8 @@ if foto:
 
     # BUKTI UKURAN ASLI
     st.markdown(f"### FOTO DIKIRIM: **{final_img.width} × {final_img.height}** · {buf.tell()//1024} KB")
-    st.image(final_img, caption="Full potret natural (persis Aisiko)", width=320)
+    st.image(final_img, caption="Foto final – 100% natural (gak ada kotak putih!)", width=320)
+
     simulasi = st.checkbox("Coba simpan dulu (aman)", value=True)
 
     if st.button("Simpan ke Diary", type="primary", use_container_width=True):
