@@ -45,27 +45,35 @@ sesi = st.radio("Sesi", ["Pagi", "Sore"], horizontal=True)
 st.markdown("<h4 style='text-align:center;'>Ambil Foto Full Body</h4>", unsafe_allow_html=True)
 foto = st.camera_input(" ", key="cam")
 
+# GANTI BAGIAN PROSES FOTO JADI INI SAJA (sisanya tetap sama)
+
 if foto:
     img = Image.open(foto)
     w, h = img.size
 
-    # RESIZE JADI 1080x2232 MIRIP AISIKO ASLI
-    final_img = img.resize((1080, 2232), Image.LANCZOS)
+    # 1. Paksa lebar 1080, tinggi ikut rasio asli (biar gak gepeng)
+    new_h = int(h * 1080 / w)
+    final_img = img.resize((1080, new_h), Image.LANCZOS)
 
-    # KOMPRESS <340 KB
+    # 2. Crop tengah kalau terlalu tinggi (maksimal ~2000-2300 px)
+    max_h = 2300
+    if final_img.height > max_h:
+        top = (final_img.height - max_h) // 2
+        final_img = final_img.crop((0, top, 1080, top + max_h))
+
+    # 3. Kompres <340 KB
     buf = io.BytesIO()
     quality = 92
     final_img.save(buf, "JPEG", quality=quality, optimize=True)
-    while buf.tell() > 340000 and quality > 40:
+    while buf.tell() > 340000 and quality > 50:
         quality -= 5
         buf = io.BytesIO()
         final_img.save(buf, "JPEG", quality=quality, optimize=True)
     buf.seek(0)
 
-    # BUKTI UKURAN ASLI (INI YANG DIKIRIM KE SERVER!)
-    st.markdown(f"### FOTO YANG DIKIRIM KE SERVER: **1080 × 2232** · {buf.tell()//1024} KB")
-    st.image(final_img, caption="Full size 1080×2232 (persis seperti Aisiko)", width=320)
-
+    # BUKTI UKURAN ASLI
+    st.markdown(f"### FOTO DIKIRIM: **{final_img.width} × {final_img.height}** · {buf.tell()//1024} KB")
+    st.image(final_img, caption="Full potret natural (persis Aisiko)", width=320)
     simulasi = st.checkbox("Coba simpan dulu (aman)", value=True)
 
     if st.button("Simpan ke Diary", type="primary", use_container_width=True):
